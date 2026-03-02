@@ -7,24 +7,28 @@ app.use(cors());
 
 app.get("/api/gemeente", async (req, res) => {
 
-    const city = req.query.city || "Rotterdam";
+    const city = (req.query.city || "Rotterdam").toLowerCase();
 
     try {
 
-        // CBS gemeenten dataset (live)
-        const url = "https://opendata.cbs.nl/ODataApi/odata/37230ned/TypedDataSet?$top=1000";
+        const response = await fetch(
+            "https://opendata.cbs.nl/ODataApi/odata/84583NED/TypedDataSet?$top=1000"
+        );
 
-        const response = await fetch(url);
-        const data = await response.json();
+        const json = await response.json();
 
-        // Zoek gemeente
-        let gemeente = data.value.find(g => g.Gemeentenaam_1 === city);
+        let bevolking = 150000;
 
-        let bevolking = gemeente?.Bevolking_1 || 150000;
+        for (let row of json.value) {
+            if (row.RegioS && row.RegioS.toLowerCase().includes(city)) {
+                bevolking = row.Bevolking_1 || bevolking;
+                break;
+            }
+        }
 
         res.json({
             city,
-            bevolking: bevolking,
+            bevolking,
             woningen: Math.round(bevolking * 0.45),
             mobiliteit: Math.round(bevolking * 0.6),
             veiligheid: Math.round(bevolking * 0.02),
@@ -32,6 +36,8 @@ app.get("/api/gemeente", async (req, res) => {
         });
 
     } catch (err) {
+
+        console.log(err);
 
         res.json({
             city,
