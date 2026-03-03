@@ -7,24 +7,20 @@ app.use(cors());
 
 app.get("/api/gemeente", async (req, res) => {
 
-    const city = (req.query.city || "Rotterdam").toLowerCase();
+    const city = req.query.city || "Rotterdam";
 
     try {
 
-        const response = await fetch(
-            "https://opendata.cbs.nl/ODataApi/odata/84583NED/TypedDataSet?$top=1000"
-        );
+        const url = `https://opendata.cbs.nl/ODataApi/odata/84583NED/TypedDataSet?$filter=RegioS eq '${city}'`;
 
+        const response = await fetch(url);
         const json = await response.json();
 
-        let bevolking = 150000;
-
-        for (let row of json.value) {
-            if (row.RegioS && row.RegioS.toLowerCase().includes(city)) {
-                bevolking = row.Bevolking_1 || bevolking;
-                break;
-            }
+        if (!json.value || json.value.length === 0) {
+            throw new Error("Geen CBS data gevonden");
         }
+
+        const bevolking = json.value[0].Bevolking_1;
 
         res.json({
             city,
@@ -37,7 +33,7 @@ app.get("/api/gemeente", async (req, res) => {
 
     } catch (err) {
 
-        console.log(err);
+        console.log("CBS fout:", err.message);
 
         res.json({
             city,
